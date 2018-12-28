@@ -233,6 +233,9 @@ struct pcm {
     struct snd_pcm_mmap_control *mmap_control;
     struct snd_pcm_sync_ptr *sync_ptr;
     void *mmap_buffer;
+
+    int dmabuf_fd;
+    void *mmap_dmabuf;
     unsigned int noirq_frames_per_msec;
     /** The delay of the PCM, in terms of frames */
     long pcm_delay;
@@ -405,6 +408,7 @@ int pcm_set_config(struct pcm *pcm, const struct pcm_config *config)
     pcm->buffer_size = config->period_count * config->period_size;
 
     if (pcm->flags & PCM_MMAP) {
+#if 0
         pcm->mmap_buffer = mmap(NULL, pcm_frames_to_bytes(pcm, pcm->buffer_size),
                                 PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, pcm->fd, 0);
         if (pcm->mmap_buffer == MAP_FAILED) {
@@ -413,6 +417,26 @@ int pcm_set_config(struct pcm *pcm, const struct pcm_config *config)
                  pcm_frames_to_bytes(pcm, pcm->buffer_size));
             return -errno_copy;
         }
+#endif
+
+        if (ioctl(pcm->fd, SNDRV_PCM_IOCTL_DMABUF_FD, &pcm->dmabuf_fd)) {
+            int errno_copy = errno;
+	    printf("cannot set sw params\n");
+            return -errno_copy;
+        }
+
+        pcm->mmap_dmabuf = mmap(NULL, pcm_frames_to_bytes(pcm, pcm->buffer_size),
+                                PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED,
+				pcm->dmabuf_fd, 0);
+        if (pcm->mmap_dmabuf == MAP_FAILED) {
+            int errno_copy = errno;
+            oops(pcm, -errno, "failed to mmap dmabuf %d bytes\n",
+                 pcm_frames_to_bytes(pcm, pcm->buffer_size));
+            return -errno_copy;
+        }
+
+	pcm->mmap_buffer = pcm->mmap_dmabuf;
+	printf("Use dmabuf instead.\n");
     }
 
     struct snd_pcm_sw_params sparams;
