@@ -17,11 +17,15 @@ LDFLAGS += -pie
 VPATH = ../src:../include/tinyalsa
 
 .PHONY: all
-all: -ltinyalsa tinyplay tinycap tinymix tinypcminfo
+all: -ltinyalsa tinyplay tinycap tinymix tinypcminfo dmabuf_test
 
 tinyplay: tinyplay.o libtinyalsa.a
 
 tinyplay.o: tinyplay.c pcm.h mixer.h asoundlib.h
+
+dmabuf_test: dmabuf_test.o libtinyalsa.a
+
+dmabuf_test.o: dmabuf_test.c pcm.h mixer.h asoundlib.h
 
 tinycap: tinycap.o libtinyalsa.a
 
